@@ -3,7 +3,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import kagglehub
 import joblib
 
 # Import sklearn modules
@@ -48,13 +47,9 @@ st.markdown(
 # Title
 st.title("House Price Category Prediction Using KNN")
 
-# Download dataset directly from Kaggle
-path = kagglehub.dataset_download(
-    "shree1992/housedata"
-)
 
 # Read dataset
-df = pd.read_csv(f"{path}/data.csv")
+df = pd.read_csv("data.csv")
 
 # Show dataset
 st.subheader("Dataset Preview")
