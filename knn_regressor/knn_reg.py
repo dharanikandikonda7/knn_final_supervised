@@ -1,4 +1,5 @@
 # Import libraries
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -47,9 +48,31 @@ st.markdown(
 # Title
 st.title("House Price Prediction Using KNN Regressor")
 
+# Base directory
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
+
+# Dataset path
+DATA_PATH = os.path.join(
+    BASE_DIR,
+    "data.csv"
+)
+
+# Models directory
+MODELS_DIR = os.path.join(
+    BASE_DIR,
+    "models"
+)
+
+# Create models directory
+os.makedirs(
+    MODELS_DIR,
+    exist_ok=True
+)
 
 # Read dataset
-df = pd.read_csv("data.csv")
+df = pd.read_csv(DATA_PATH)
 
 # Show dataset
 st.subheader("Dataset Preview")
@@ -62,7 +85,11 @@ st.write("Dataset Shape :", df.shape)
 df = df.drop_duplicates()
 
 # Drop unnecessary columns
-drop_cols = ["date", "street", "country"]
+drop_cols = [
+    "date",
+    "street",
+    "country"
+]
 
 # Drop columns if present
 for col in drop_cols:
@@ -71,48 +98,78 @@ for col in drop_cols:
     if col in df.columns:
 
         # Drop column
-        df = df.drop(col, axis=1)
+        df = df.drop(
+            col,
+            axis=1
+        )
+
+# Numerical columns
+num_cols = df.select_dtypes(
+    include=np.number
+).columns
+
+# Categorical columns
+cat_cols = df.select_dtypes(
+    include="object"
+).columns
+
+# Fill numerical missing values
+num_imputer = SimpleImputer(
+    strategy="mean"
+)
+
+df[num_cols] = num_imputer.fit_transform(
+    df[num_cols]
+)
+
+# Fill categorical missing values
+if len(cat_cols) > 0:
+
+    # Create imputer
+    cat_imputer = SimpleImputer(
+        strategy="most_frequent"
+    )
+
+    # Transform columns
+    df[cat_cols] = cat_imputer.fit_transform(
+        df[cat_cols]
+    )
 
 # Store encoders
 encoders = {}
 
-# Numerical columns
-num_cols = df.select_dtypes(include=np.number).columns
-
-# Categorical columns
-cat_cols = df.select_dtypes(include="object").columns
-
-# Fill missing numerical values
-num_imputer = SimpleImputer(strategy="mean")
-df[num_cols] = num_imputer.fit_transform(df[num_cols])
-
-# Fill missing categorical values
-cat_imputer = SimpleImputer(strategy="most_frequent")
-df[cat_cols] = cat_imputer.fit_transform(df[cat_cols])
-
 # Encode categorical columns
-for col in cat_cols:
+if len(cat_cols) > 0:
 
-    # Create encoder
-    le = LabelEncoder()
+    # Loop columns
+    for col in cat_cols:
 
-    # Encode values
-    df[col] = le.fit_transform(df[col])
+        # Create encoder
+        le = LabelEncoder()
 
-    # Store encoder
-    encoders[col] = le
+        # Encode values
+        df[col] = le.fit_transform(
+            df[col]
+        )
+
+        # Store encoder
+        encoders[col] = le
 
 # Correlation matrix section
 st.subheader("Correlation Matrix")
 
 # Select only numerical columns
-numeric_df = df.select_dtypes(include=np.number)
+numeric_df = df.select_dtypes(
+    include=np.number
+)
 
 # Create correlation matrix
 corr = numeric_df.corr()
 
 # Create figure
-fig1, ax1 = plt.subplots(figsize=(12, 8))
+fig1, ax1 = plt.subplots(
+    figsize=(12, 8)
+)
 
 # Plot heatmap
 heatmap = ax1.imshow(corr)
@@ -121,18 +178,32 @@ heatmap = ax1.imshow(corr)
 plt.colorbar(heatmap)
 
 # Add axis labels
-ax1.set_xticks(range(len(corr.columns)))
-ax1.set_yticks(range(len(corr.columns)))
+ax1.set_xticks(
+    range(len(corr.columns))
+)
+
+ax1.set_yticks(
+    range(len(corr.columns))
+)
 
 # Column names
-ax1.set_xticklabels(corr.columns, rotation=90)
-ax1.set_yticklabels(corr.columns)
+ax1.set_xticklabels(
+    corr.columns,
+    rotation=90
+)
+
+ax1.set_yticklabels(
+    corr.columns
+)
 
 # Show graph
 st.pyplot(fig1)
 
 # Features
-X = df.drop("price", axis=1)
+X = df.drop(
+    "price",
+    axis=1
+)
 
 # Target
 y = df["price"]
@@ -149,10 +220,14 @@ X_train, X_test, y_train, y_test = train_test_split(
 scaler = StandardScaler()
 
 # Fit train data
-X_train_scaled = scaler.fit_transform(X_train)
+X_train_scaled = scaler.fit_transform(
+    X_train
+)
 
 # Transform test data
-X_test_scaled = scaler.transform(X_test)
+X_test_scaled = scaler.transform(
+    X_test
+)
 
 # Hyperparameter tuning section
 st.subheader("Hyperparameter Tuning")
@@ -160,8 +235,14 @@ st.subheader("Hyperparameter Tuning")
 # Parameter grid
 param_grid = {
     "n_neighbors": [3, 5, 7, 9],
-    "weights": ["uniform", "distance"],
-    "metric": ["euclidean", "manhattan"]
+    "weights": [
+        "uniform",
+        "distance"
+    ],
+    "metric": [
+        "euclidean",
+        "manhattan"
+    ]
 }
 
 # Create KNN model
@@ -176,28 +257,66 @@ grid_search = GridSearchCV(
 )
 
 # Train model
-grid_search.fit(X_train_scaled, y_train)
+grid_search.fit(
+    X_train_scaled,
+    y_train
+)
 
 # Best model
 model = grid_search.best_estimator_
 
+# Model path
+MODEL_PATH = os.path.join(
+    MODELS_DIR,
+    "knn_model.pkl"
+)
+
+# Scaler path
+SCALER_PATH = os.path.join(
+    MODELS_DIR,
+    "scaler.pkl"
+)
+
 # Save model
-joblib.dump(model, "models/knn_model.pkl")
+joblib.dump(
+    model,
+    MODEL_PATH
+)
 
 # Save scaler
-joblib.dump(scaler, "models/scaler.pkl")
+joblib.dump(
+    scaler,
+    SCALER_PATH
+)
 
 # Show best parameters
-st.write("Best Parameters :", grid_search.best_params_)
+st.write(
+    "Best Parameters :",
+    grid_search.best_params_
+)
 
 # Predict output
-y_pred = model.predict(X_test_scaled)
+y_pred = model.predict(
+    X_test_scaled
+)
 
 # Calculate metrics
-mae = mean_absolute_error(y_test, y_pred)
-mse = mean_squared_error(y_test, y_pred)
+mae = mean_absolute_error(
+    y_test,
+    y_pred
+)
+
+mse = mean_squared_error(
+    y_test,
+    y_pred
+)
+
 rmse = np.sqrt(mse)
-r2 = r2_score(y_test, y_pred)
+
+r2 = r2_score(
+    y_test,
+    y_pred
+)
 
 # Performance section
 st.subheader("Model Performance")
@@ -206,29 +325,64 @@ st.subheader("Model Performance")
 c1, c2, c3, c4 = st.columns(4)
 
 # Show metrics
-c1.metric("MAE", round(mae, 2))
-c2.metric("MSE", round(mse, 2))
-c3.metric("RMSE", round(rmse, 2))
-c4.metric("R² Score", round(r2, 2))
+c1.metric(
+    "MAE",
+    round(mae, 2)
+)
+
+c2.metric(
+    "MSE",
+    round(mse, 2)
+)
+
+c3.metric(
+    "RMSE",
+    round(rmse, 2)
+)
+
+c4.metric(
+    "R² Score",
+    round(r2, 2)
+)
 
 # Actual vs predicted graph
-st.subheader("Actual vs Predicted Prices")
+st.subheader(
+    "Actual vs Predicted Prices"
+)
 
 # Create figure
-fig2, ax2 = plt.subplots(figsize=(7, 5))
+fig2, ax2 = plt.subplots(
+    figsize=(7, 5)
+)
 
 # Scatter plot
-ax2.scatter(y_test, y_pred)
+ax2.scatter(
+    y_test,
+    y_pred
+)
 
 # Labels
-ax2.set_xlabel("Actual Price")
-ax2.set_ylabel("Predicted Price")
+ax2.set_xlabel(
+    "Actual Price"
+)
+
+ax2.set_ylabel(
+    "Predicted Price"
+)
 
 # Title
-ax2.set_title("KNN Regression")
+ax2.set_title(
+    "KNN Regression"
+)
 
 # Show graph
 st.pyplot(fig2)
+
+# Feature importance section
+st.subheader("Dataset Features")
+
+# Show columns
+st.write(X.columns.tolist())
 
 # Prediction section
 st.subheader("Predict House Price")
@@ -252,7 +406,7 @@ with col1:
     # Loop first half
     for col in first_half:
 
-        # Numerical input
+        # Input field
         user_input[col] = st.number_input(
             f"{col}",
             value=float(df[col].mean())
@@ -264,7 +418,7 @@ with col2:
     # Loop second half
     for col in second_half:
 
-        # Numerical input
+        # Input field
         user_input[col] = st.number_input(
             f"{col}",
             value=float(df[col].mean())
@@ -274,16 +428,22 @@ with col2:
 if st.button("Predict House Price"):
 
     # Convert into dataframe
-    input_df = pd.DataFrame([user_input])
+    input_df = pd.DataFrame(
+        [user_input]
+    )
 
     # Arrange columns correctly
     input_df = input_df[X.columns]
 
     # Scale input
-    input_scaled = scaler.transform(input_df)
+    input_scaled = scaler.transform(
+        input_df
+    )
 
     # Predict price
-    prediction = model.predict(input_scaled)
+    prediction = model.predict(
+        input_scaled
+    )
 
     # Show result
     st.success(
